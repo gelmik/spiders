@@ -7,11 +7,11 @@ import pytz
 class PgrRuSpider(scrapy.Spider):
     name = "pgr.ru"
     description = "новости в корневом каталоге с пагинацией"
-    allowed_domains = ["prg.ru"]
+    allowed_domains = ["pgr.ru"]
     start_urls = ["https://pgr.ru/news"]
     page = 0
     date_now = datetime.now().date()
-    days = 100
+    days = 30
     visited_urls = []
     tz = pytz.timezone("Europe/Moscow")
 
@@ -31,16 +31,11 @@ class PgrRuSpider(scrapy.Spider):
             )
 
             href = response.urljoin(div.xpath("//h5/a/@href").extract()[0])
-            print(href)
-            print(
-                (self.date_now - publish_article_date.date()).days <= self.days
-                and href not in self.visited_urls
-            )
             if (
                 self.date_now - publish_article_date.date()
             ).days <= self.days and href not in self.visited_urls:
                 yield scrapy.Request(
-                    href,
+                    url=href,
                     callback=self.parse_article,
                     meta={
                         "raw_date": raw_article_date,
@@ -58,13 +53,13 @@ class PgrRuSpider(scrapy.Spider):
             int(last_raw_date.split(".")[1]),
             int(last_raw_date.split(".")[0]),
         ).date()
-        print((self.date_now - last_date).days <= self.days)
         if (self.date_now - last_date).days <= self.days:
             self.page += 1
-            yield scrapy.Request(f"https://pgr.ru/news?page={self.page}")
+            yield scrapy.Request(
+                f"https://pgr.ru/news?page={self.page}", callback=self.parse
+            )
 
     def parse_article(self, response):
-        print("*" * 100)
         yield {
             "url": response.url,
             "request_url": response.url,
